@@ -1,12 +1,18 @@
 import pandas as pd
-import plotly.express as px
-import dash
-from dash import dcc, html, Input, Output
+import requests
+from io import BytesIO
 
-vendas_df = pd.read_excel("https://raw.githubusercontent.com/07leonam/dash/main/base_vendas.xlsx", engine='openpyxl')
-clientes_raw = pd.read_excel("https://raw.githubusercontent.com/07leonam/dash/main/cadastro_clientes.xlsx", engine='openpyxl')
-lojas_df = pd.read_excel("https://raw.githubusercontent.com/07leonam/dash/main/cadastro_lojas.xlsx", engine='openpyxl')
-produtos_df = pd.read_excel("https://raw.githubusercontent.com/07leonam/dash/main/cadastro_produtos.xlsx", engine='openpyxl')
+def read_excel_url(url):
+    response = requests.get(url)
+    response.raise_for_status()  # Garante que não houve erro na requisição
+    return pd.read_excel(BytesIO(response.content), engine='openpyxl')
+
+# Leitura dos arquivos
+vendas_df = read_excel_url("https://raw.githubusercontent.com/07leonam/dash/main/base_vendas.xlsx")
+clientes_raw = read_excel_url("https://raw.githubusercontent.com/07leonam/dash/main/cadastro_clientes.xlsx")
+lojas_df = read_excel_url("https://raw.githubusercontent.com/07leonam/dash/main/cadastro_lojas.xlsx")
+produtos_df = read_excel_url("https://raw.githubusercontent.com/07leonam/dash/main/cadastro_produtos.xlsx")
+
 
 # Ajustar clientes (cabeçalho está na linha 2)
 clientes_df = clientes_raw.iloc[2:].rename(columns={
