@@ -28,7 +28,7 @@ clientes_df = clientes_raw.iloc[2:].rename(columns={
 clientes_df = clientes_df[["ID Cliente", "Primeiro Nome", "Sobrenome"]]
 
 # Ajustar vendas
-vendas_df["Ano"] = pd.DatetimeIndex(vendas_df["Data da Venda"]).year
+vendas_df["Ano"] = pd.DatetimeIndex(vendas_df["Data da Venda"]).year.astype(int)
 
 # Unir dados
 vendas = vendas_df.merge(produtos_df, on="SKU", how="left") \
