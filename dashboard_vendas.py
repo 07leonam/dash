@@ -4,10 +4,10 @@ import dash
 from dash import dcc, html, Input, Output
 
 # Carregar dados
-vendas_df = pd.read_excel("/mnt/data/base vendas unificada.xlsx")
-clientes_raw = pd.read_excel("/mnt/data/Cadastro Clientes.xlsx")
-lojas_df = pd.read_excel("/mnt/data/Cadastro Lojas.xlsx")
-produtos_df = pd.read_excel("/mnt/data/Cadastro Produtos.xlsx")
+vendas_df = pd.read_excel("/mnt/data/base_vendas.xlsx")
+clientes_raw = pd.read_excel("/mnt/data/cadastro_clientes.xlsx")
+lojas_df = pd.read_excel("/mnt/data/cadastro_lojas.xlsx")
+produtos_df = pd.read_excel("/mnt/data/cadastro_produtos.xlsx")
 
 # Ajustar clientes (cabeçalho está na linha 2)
 clientes_df = clientes_raw.iloc[2:].rename(columns={
