@@ -107,5 +107,8 @@ def atualizar_grafico(tipo, marca):
     return px.line(df.groupby("Produto")["Qtd Vendida"].sum().reset_index(),
                    x="Produto", y="Qtd Vendida", title=f"Vendas por Produto ({tipo or ''} - {marca or ''})")
 
+server = app.server
+
 if __name__ == "__main__":
     app.run_server(debug=True)
+
