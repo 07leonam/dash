@@ -9,7 +9,7 @@ from io import BytesIO
 
 def read_excel_url(url):
     response = requests.get(url)
-    response.raise_for_status()  # Garante que não houve erro na requisição
+    response.raise_for_status()
     return pd.read_excel(BytesIO(response.content), engine='openpyxl')
 
 # Leitura dos arquivos
@@ -18,8 +18,7 @@ clientes_raw = read_excel_url("https://raw.githubusercontent.com/07leonam/dash/m
 lojas_df = read_excel_url("https://raw.githubusercontent.com/07leonam/dash/main/cadastro_lojas.xlsx")
 produtos_df = read_excel_url("https://raw.githubusercontent.com/07leonam/dash/main/cadastro_produtos.xlsx")
 
-
-# Ajustar clientes (cabeçalho está na linha 2)
+# Ajustar clientes
 clientes_df = clientes_raw.iloc[2:].rename(columns={
     "Unnamed: 0": "ID Cliente",
     "Unnamed: 1": "Primeiro Nome",
@@ -45,67 +44,81 @@ app.title = "Dashboard de Vendas"
 app.layout = html.Div([
     html.H1("Dashboard de Vendas", style={"textAlign": "center", "color": "darkblue"}),
 
-    # Filtros dinâmicos
+    # Filtros dinâmicos globais
     html.Div([
-        html.Label("Tipo do Produto:"),
-        dcc.Dropdown(id="tipo-produto-dropdown",
-                     options=[{"label": tp, "value": tp} for tp in sorted(vendas["Tipo do Produto"].dropna().unique())],
-                     placeholder="Selecione o tipo"),
+        html.Label("Produto:"),
+        dcc.Dropdown(id="filtro-produto", options=[{"label": p, "value": p} for p in sorted(vendas["Produto"].dropna().unique())], placeholder="Selecione o produto"),
+
+        html.Label("Loja:"),
+        dcc.Dropdown(id="filtro-loja", options=[{"label": l, "value": l} for l in sorted(vendas["Nome da Loja"].dropna().unique())], placeholder="Selecione a loja"),
+
+        html.Label("Cliente:"),
+        dcc.Dropdown(id="filtro-cliente", options=[{"label": c, "value": c} for c in sorted(vendas["Nome Cliente"].dropna().unique())], placeholder="Selecione o cliente"),
 
         html.Label("Marca:"),
-        dcc.Dropdown(id="marca-dropdown", placeholder="Selecione a marca")
-    ], style={"width": "40%", "margin": "auto"}),
+        dcc.Dropdown(id="filtro-marca", options=[{"label": m, "value": m} for m in sorted(vendas["Marca"].dropna().unique())], placeholder="Selecione a marca"),
 
-    # Gráfico com filtros
-    dcc.Graph(id="grafico-filtrado"),
+        html.Label("Tipo do Produto:"),
+        dcc.Dropdown(id="filtro-tipo", options=[{"label": t, "value": t} for t in sorted(vendas["Tipo do Produto"].dropna().unique())], placeholder="Selecione o tipo")
+    ], style={"width": "60%", "margin": "auto"}),
 
-    # Outros gráficos
-    dcc.Graph(figure=px.histogram(vendas, x=vendas["Ano"].astype(str), y="Qtd Vendida", histfunc="sum", title="Vendas por Ano")),
-
-    dcc.Graph(figure=px.bar(vendas.groupby("Nome Cliente")["Qtd Vendida"].sum().nlargest(10).reset_index(),
-                             x="Nome Cliente", y="Qtd Vendida", title="Top 10 Clientes")),
-
-    dcc.Graph(figure=px.bar(vendas.groupby("Produto")["Qtd Vendida"].sum().nlargest(10).reset_index(),
-                             x="Produto", y="Qtd Vendida", title="Top 10 Produtos")),
-
-    dcc.Graph(figure=px.bar(vendas.groupby("Nome da Loja")["Qtd Vendida"].sum().reset_index(),
-                             x="Qtd Vendida", y="Nome da Loja", orientation="h", title="Vendas por Loja")),
-
-    dcc.Graph(figure=px.pie(vendas, names="Marca", values="Qtd Vendida", title="Distribuição por Marca")),
-
-    dcc.Graph(figure=px.area(vendas.groupby("Tipo do Produto")["Qtd Vendida"].sum().reset_index(),
-                              x="Tipo do Produto", y="Qtd Vendida", title="Área por Tipo de Produto"))
+    # Gráficos
+    dcc.Graph(id="grafico-vendas-ano"),
+    dcc.Graph(id="grafico-top-clientes"),
+    dcc.Graph(id="grafico-top-produtos"),
+    dcc.Graph(id="grafico-vendas-loja"),
+    dcc.Graph(id="grafico-distribuicao-marca"),
+    dcc.Graph(id="grafico-area-tipo")
 ])
 
-# Callback: atualizar marcas com base no tipo selecionado
-@app.callback(
-    Output("marca-dropdown", "options"),
-    Input("tipo-produto-dropdown", "value")
-)
-def atualizar_marcas(tipo):
-    if tipo is None:
-        return []
-    marcas = vendas[vendas["Tipo do Produto"] == tipo]["Marca"].dropna().unique()
-    return [{"label": m, "value": m} for m in sorted(marcas)]
+# Função de filtro
 
-# Callback: atualizar gráfico com base nos filtros
-@app.callback(
-    Output("grafico-filtrado", "figure"),
-    Input("tipo-produto-dropdown", "value"),
-    Input("marca-dropdown", "value")
-)
-def atualizar_grafico(tipo, marca):
-    df = vendas.copy()
-    if tipo:
-        df = df[df["Tipo do Produto"] == tipo]
+def aplicar_filtros(df, produto, loja, cliente, marca, tipo):
+    if produto:
+        df = df[df["Produto"] == produto]
+    if loja:
+        df = df[df["Nome da Loja"] == loja]
+    if cliente:
+        df = df[df["Nome Cliente"] == cliente]
     if marca:
         df = df[df["Marca"] == marca]
+    if tipo:
+        df = df[df["Tipo do Produto"] == tipo]
+    return df
 
-    if df.empty:
-        return px.bar(title="Sem dados para os filtros selecionados")
+# Callback genérico para cada gráfico
 
-    return px.line(df.groupby("Produto")["Qtd Vendida"].sum().reset_index(),
-                   x="Produto", y="Qtd Vendida", title=f"Vendas por Produto ({tipo or ''} - {marca or ''})")
+def registrar_callback_grafico(id_grafico, func_plot):
+    @app.callback(
+        Output(id_grafico, "figure"),
+        Input("filtro-produto", "value"),
+        Input("filtro-loja", "value"),
+        Input("filtro-cliente", "value"),
+        Input("filtro-marca", "value"),
+        Input("filtro-tipo", "value")
+    )
+    def atualizar_grafico(produto, loja, cliente, marca, tipo):
+        df_filtrado = aplicar_filtros(vendas.copy(), produto, loja, cliente, marca, tipo)
+        if df_filtrado.empty:
+            return px.bar(title="Sem dados para os filtros selecionados")
+        return func_plot(df_filtrado)
+
+# Gráficos
+registrar_callback_grafico("grafico-vendas-ano", lambda df: px.histogram(df, x=df["Ano"].astype(str), y="Qtd Vendida", histfunc="sum", title="Vendas por Ano"))
+
+registrar_callback_grafico("grafico-top-clientes", lambda df: px.bar(df.groupby("Nome Cliente")["Qtd Vendida"].sum().nlargest(10).reset_index(),
+                                                                      x="Nome Cliente", y="Qtd Vendida", title="Top 10 Clientes"))
+
+registrar_callback_grafico("grafico-top-produtos", lambda df: px.bar(df.groupby("Produto")["Qtd Vendida"].sum().nlargest(10).reset_index(),
+                                                                      x="Produto", y="Qtd Vendida", title="Top 10 Produtos"))
+
+registrar_callback_grafico("grafico-vendas-loja", lambda df: px.bar(df.groupby("Nome da Loja")["Qtd Vendida"].sum().reset_index(),
+                                                                     x="Qtd Vendida", y="Nome da Loja", orientation="h", title="Vendas por Loja"))
+
+registrar_callback_grafico("grafico-distribuicao-marca", lambda df: px.pie(df, names="Marca", values="Qtd Vendida", title="Distribuição por Marca"))
+
+registrar_callback_grafico("grafico-area-tipo", lambda df: px.area(df.groupby("Tipo do Produto")["Qtd Vendida"].sum().reset_index(),
+                                                                    x="Tipo do Produto", y="Qtd Vendida", title="Área por Tipo de Produto"))
 
 server = app.server
 
