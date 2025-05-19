@@ -60,7 +60,7 @@ app.layout = html.Div([
     dcc.Graph(id="grafico-filtrado"),
 
     # Outros gráficos
-    dcc.Graph(figure=px.histogram(vendas, x="Ano", y="Qtd Vendida", histfunc="sum", title="Vendas por Ano")),
+    dcc.Graph(figure=px.histogram(vendas, x=vendas["Ano"].astype(str), y="Qtd Vendida", histfunc="sum", title="Vendas por Ano")),
 
     dcc.Graph(figure=px.bar(vendas.groupby("Nome Cliente")["Qtd Vendida"].sum().nlargest(10).reset_index(),
                              x="Nome Cliente", y="Qtd Vendida", title="Top 10 Clientes")),
