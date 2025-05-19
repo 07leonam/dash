@@ -98,4 +98,4 @@ def atualizar_grafico(tipo, marca):
                    x="Produto", y="Qtd Vendida", title=f"Vendas por Produto ({tipo or ''} - {marca or ''})")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run_server(debug=True)
